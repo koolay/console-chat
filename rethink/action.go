@@ -4,10 +4,29 @@ package rethink
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/koolay/console-chat/auth"
 	r "gopkg.in/gorethink/gorethink.v4"
 )
+
+var (
+	roomPrefix   = "room_"
+	database     = "chat"
+	address      = "172.105.233.187:28015"
+	RethinkActor *Rethink
+)
+
+func init() {
+	options := &Options{
+		Address:  address,
+		Database: database,
+		Username: "",
+		Password: "",
+	}
+	RethinkActor = NewRethink(options)
+}
 
 // Options options
 type Options struct {
@@ -17,18 +36,12 @@ type Options struct {
 	Password string
 }
 
-type ctx struct {
-	username string
-	inRoom   string
-}
-
 // Rethink driver
 type Rethink struct {
 	address  string
 	database string
 	username string
 	password string
-	ctx      *ctx
 }
 
 // NewRethink instance driver
@@ -38,7 +51,6 @@ func NewRethink(options *Options) *Rethink {
 		username: options.Username,
 		password: options.Password,
 		database: options.Database,
-		ctx:      &ctx{inRoom: "general", username: ""},
 	}
 	return rethink
 }
@@ -70,7 +82,7 @@ func (p *Rethink) Login(username string, password string) error {
 		return err
 	}
 
-	var user Users
+	var user auth.Users
 	_, err = result.Peek(&user)
 	if err != nil {
 		return err
@@ -78,7 +90,7 @@ func (p *Rethink) Login(username string, password string) error {
 	if !checkPasswordHash(password, user.Password) {
 		return errors.New("username or password not match")
 	}
-	p.ctx.username = username
+	auth.SetLogin(username)
 	return nil
 }
 
@@ -91,7 +103,7 @@ func (p *Rethink) Join(username string, password string) error {
 	if err != nil {
 		return err
 	}
-	var user Users
+	var user auth.Users
 	hasUser, err := result.Peek(&user)
 	if err != nil {
 		return err
@@ -103,7 +115,7 @@ func (p *Rethink) Join(username string, password string) error {
 	if err != nil {
 		return err
 	}
-	user = Users{
+	user = auth.Users{
 		Username:  username,
 		Password:  hPassword,
 		CreatedAt: time.Now().Unix(),
@@ -117,7 +129,7 @@ func (p *Rethink) SwitchRoom(room string) error {
 	if err := checkRoomName(room); err != nil {
 		return err
 	}
-	p.ctx.inRoom = room
+	auth.UserSess.InRoom = room
 	return nil
 }
 
@@ -132,13 +144,32 @@ func (p *Rethink) CreateRoom(room string) error {
 	if err != nil {
 		return err
 	}
-	result, err := r.DB(p.database).TableCreate(room).RunWrite(sess)
+	roomName := fmt.Sprintf("%s%s", roomPrefix, room)
+	_, err = r.DB(p.database).TableCreate(roomName).RunWrite(sess)
 	if err != nil {
 		return err
 	}
-	fmt.Println("*** Create table result: ***")
-	fmt.Println(result)
+	fmt.Printf("Create room %s Successfully\n", room)
 	return nil
+}
+
+func (p *Rethink) GetAllRooms() (rooms []string, err error) {
+	sess, err := p.connect()
+	if err != nil {
+		return
+	}
+	var tables []string
+	result, err := r.TableList().Run(sess)
+	err = result.All(&tables)
+	if err != nil {
+		return
+	}
+	for _, tableName := range tables {
+		if strings.HasPrefix(tableName, roomPrefix) {
+			rooms = append(rooms, strings.TrimPrefix(tableName, roomPrefix))
+		}
+	}
+	return
 }
 
 func (p *Rethink) SendPublicMessage(message string) error {
@@ -146,10 +177,9 @@ func (p *Rethink) SendPublicMessage(message string) error {
 	if err != nil {
 		return err
 	}
-	msg := PublicMessage{
-		Content: message,
-		Sender:  p.ctx.username,
-	}
+	msg := PublicMessage{}
+	msg.Content = message
+	msg.Sender = auth.UserSess.GetUser()
 	msg.CreatedAt = time.Now().Unix()
 	_, err = r.Table(p.getPublicMsgTable()).Insert(msg).RunWrite(sess)
 	return err
@@ -160,12 +190,11 @@ func (p *Rethink) SendRoomMessage(message string) error {
 	if err != nil {
 		return err
 	}
-	msg := RoomMessage{
-		Content: message,
-		Sender:  p.ctx.username,
-	}
+	msg := RoomMessage{}
+	msg.Content = message
+	msg.Sender = auth.UserSess.GetUser()
 	msg.CreatedAt = time.Now().Unix()
-	_, err = r.Table(p.ctx.inRoom).Insert(msg).RunWrite(sess)
+	_, err = r.Table(auth.UserSess.InRoom).Insert(msg).RunWrite(sess)
 	return err
 }
 
@@ -174,11 +203,10 @@ func (p *Rethink) SendPrivateMessage(toUser string, message string) error {
 	if err != nil {
 		return err
 	}
-	msg := PrivateMessage{
-		Sender:   p.ctx.username,
-		Receiver: toUser,
-		Content:  message,
-	}
+	msg := PrivateMessage{}
+	msg.Sender = auth.UserSess.GetUser()
+	msg.Receiver = toUser
+	msg.Content = message
 	msg.CreatedAt = time.Now().Unix()
 	_, err = r.Table(p.getPrivateMsgTable()).Insert(msg).RunWrite(sess)
 	return err
@@ -222,7 +250,7 @@ func (p *Rethink) FeedPrivate() error {
 		return err
 	}
 	cursor, err := r.Table(p.getPrivateMsgTable()).
-		Filter(r.Row.Field("Receiver").Eq(p.ctx.username)).
+		Filter(r.Row.Field("Receiver").Eq(auth.UserSess.GetUser())).
 		Changes().
 		Run(sess)
 	if err != nil {

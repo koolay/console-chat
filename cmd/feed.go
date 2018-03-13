@@ -9,11 +9,6 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 )
 
-var (
-	database = "chat"
-	address  = "172.105.233.187:28015"
-)
-
 func NewFeedCmd() cli.Command {
 
 	feedCmd := cli.Command{
@@ -23,12 +18,7 @@ func NewFeedCmd() cli.Command {
 			cli.StringFlag{Name: "room, r"},
 		},
 		Action: func(c *cli.Context) error {
-			options := &rethink.Options{
-				Database: database,
-				Address:  address,
-			}
-			r := rethink.NewRethink(options)
-			return r.FeedsPublic()
+			return rethink.RethinkActor.FeedsPublic()
 		},
 	}
 	return feedCmd
@@ -43,12 +33,7 @@ func NewCreateRoomCmd() cli.Command {
 			cli.StringFlag{Name: "name, n"},
 		},
 		Action: func(c *cli.Context) error {
-			options := &rethink.Options{
-				Database: database,
-				Address:  address,
-			}
-			r := rethink.NewRethink(options)
-			return r.CreateRoom(c.String("name"))
+			return rethink.RethinkActor.CreateRoom(c.String("name"))
 		},
 	}
 }
@@ -63,12 +48,7 @@ func NewSendCmd() cli.Command {
 			cli.StringFlag{Name: "to, t"},
 		},
 		Action: func(c *cli.Context) error {
-			options := &rethink.Options{
-				Database: database,
-				Address:  address,
-			}
-			r := rethink.NewRethink(options)
-			return r.CreateRoom(c.String("name"))
+			return nil
 		},
 	}
 }
@@ -82,11 +62,6 @@ func NewJoinCmd() cli.Command {
 			cli.StringFlag{Name: "username, u"},
 		},
 		Action: func(c *cli.Context) error {
-			options := &rethink.Options{
-				Database: database,
-				Address:  address,
-			}
-			r := rethink.NewRethink(options)
 			username := c.String("username")
 			password := ""
 			confirmPassword := ""
@@ -104,40 +79,12 @@ func NewJoinCmd() cli.Command {
 			if username == "" || password == "" {
 				return errors.New("username and password should not be empty")
 			}
-			if err := r.Join(username, password); err != nil {
+
+			if err := rethink.RethinkActor.Join(username, password); err != nil {
 				return err
 			} else {
 				fmt.Println("Created successfully!")
 			}
-			return nil
-		},
-	}
-}
-
-func NewLoginCmd() cli.Command {
-
-	return cli.Command{
-		Name:  "login",
-		Usage: "login with username and password.",
-		Flags: []cli.Flag{
-			cli.StringFlag{Name: "username, u"},
-		},
-		Action: func(c *cli.Context) error {
-			options := &rethink.Options{
-				Database: database,
-				Address:  address,
-			}
-			r := rethink.NewRethink(options)
-			username := c.String("username")
-			password := ""
-			prompt := &survey.Password{
-				Message: "Please type your password",
-			}
-			survey.AskOne(prompt, &password, nil)
-			if err := r.Login(username, password); err != nil {
-				return err
-			}
-			fmt.Printf("Login with %s successfully!\n", username)
 			return nil
 		},
 	}

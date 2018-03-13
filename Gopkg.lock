@@ -8,6 +8,21 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/gdamore/encoding"
+  packages = ["."]
+  revision = "b23993cbb6353f0e6aa98d0ee318a34728f628b9"
+
+[[projects]]
+  name = "github.com/gdamore/tcell"
+  packages = [
+    ".",
+    "terminfo"
+  ]
+  revision = "061d51a604c546b48e92253cb65190d76cecf4c6"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "925541529c1fa6821df4e44ce2723319eb2be768"
@@ -18,6 +33,21 @@
   name = "github.com/hailocab/go-hostpool"
   packages = ["."]
   revision = "e80d13ce29ede4452c43dea11e79b9bc8a15b478"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/lucasb-eyer/go-colorful"
+  packages = ["."]
+  revision = "231272389856c976b7500c4fffcc52ddf06ff4eb"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/marcusolsson/tui-go"
+  packages = [
+    ".",
+    "wordwrap"
+  ]
+  revision = "4c90746cad8d9888a388a2da7050a736abc30317"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -32,10 +62,22 @@
   version = "v0.0.3"
 
 [[projects]]
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  revision = "9e777a8366cce605130a531d2cd6363d07ad7317"
+  version = "v0.0.2"
+
+[[projects]]
   branch = "master"
   name = "github.com/mgutz/ansi"
   packages = ["."]
   revision = "9520e82c474b0a04dd04f8a40959027271bab992"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mitchellh/go-wordwrap"
+  packages = ["."]
+  revision = "ad45545899c7b13c020ea92b2072220eefad42b8"
 
 [[projects]]
   name = "github.com/opentracing/opentracing-go"
@@ -86,6 +128,18 @@
   revision = "7dca6fe1f43775aa6d1334576870ff63f978f539"
 
 [[projects]]
+  name = "golang.org/x/text"
+  packages = [
+    "encoding",
+    "encoding/internal/identifier",
+    "internal/gen",
+    "transform",
+    "unicode/cldr"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
+
+[[projects]]
   name = "gopkg.in/AlecAivazis/survey.v1"
   packages = [
     ".",
@@ -115,6 +169,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b0cf838bb330d89490c17e6825b9e8821f402f931986adbc7259c109dbb6f18c"
+  inputs-digest = "de896778c9d5d5df237b40f4f01c4982c188cf0d42ebca3adb7e4036781bccad"
   solver-name = "gps-cdcl"
   solver-version = 1
