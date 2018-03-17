@@ -9,21 +9,6 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 )
 
-func NewFeedCmd() cli.Command {
-
-	feedCmd := cli.Command{
-		Name:  "feed",
-		Usage: "feed a room",
-		Flags: []cli.Flag{
-			cli.StringFlag{Name: "room, r"},
-		},
-		Action: func(c *cli.Context) error {
-			return rethink.RethinkActor.FeedsPublic()
-		},
-	}
-	return feedCmd
-}
-
 func NewCreateRoomCmd() cli.Command {
 
 	return cli.Command{
@@ -33,7 +18,8 @@ func NewCreateRoomCmd() cli.Command {
 			cli.StringFlag{Name: "name, n"},
 		},
 		Action: func(c *cli.Context) error {
-			return rethink.RethinkActor.CreateRoom(c.String("name"))
+			return rethink.RethinkActor.Test()
+			//return rethink.RethinkActor.CreateRoom(c.String("name"))
 		},
 	}
 }

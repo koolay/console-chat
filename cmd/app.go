@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/koolay/console-chat/rethink"
+	"github.com/koolay/console-chat/view"
 	"github.com/urfave/cli"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 )
@@ -15,7 +16,6 @@ func NewApp() *cli.App {
 	app.Name = "console-chat"
 	app.Usage = "realtime chat"
 	app.Commands = []cli.Command{
-		NewFeedCmd(),
 		NewCreateRoomCmd(),
 		NewJoinCmd(),
 	}
@@ -63,7 +63,18 @@ func NewApp() *cli.App {
 			return err
 		}
 
-		ui := NewChatUI()
+		ui := view.NewChatUI()
+		go func() {
+			rethink.RethinkActor.FeedsPublic()
+		}()
+
+		go func() {
+			rethink.RethinkActor.FeedsRoom(selectedRoom)
+		}()
+
+		go func() {
+			rethink.RethinkActor.FeedPrivate()
+		}()
 		return ui.Run()
 	}
 	return app

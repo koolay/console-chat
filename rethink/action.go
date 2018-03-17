@@ -75,6 +75,43 @@ func (p *Rethink) connect() (sess *r.Session, err error) {
 	return sess, err
 }
 
+// Test test
+func (p *Rethink) Test() error {
+	//sess, err := p.connect()
+	//go func() {
+	//for {
+	//m := PublicMessage{
+	//Sender:    "debug",
+	//Content:   "hello" + string(time.Now().Unix()),
+	//CreatedAt: time.Now().Unix(),
+	//}
+	//_, err = r.Table(p.getPublicMsgTable()).Insert(m).RunWrite(sess)
+	//time.Sleep(1 * time.Second)
+	//}
+	//}()
+	//user := auth.Users{
+	//Username: "ooo",
+	//Password: "123",
+	//}
+	//fmt.Println(result.Created)
+	go func() {
+		for {
+			p.SendPublicMessage("foo" + time.Now().Format("2006-01-02 15:04:05"))
+			time.Sleep(1 * time.Second)
+
+		}
+	}()
+	go func() {
+		p.FeedsPublic()
+	}()
+	for {
+		record := <-ChatRecordChan
+		fmt.Println("chan->", "id:", record.Id, ",", record.Content, ",", record.CreatedAt, ",", record.Sender)
+	}
+	//return err
+	return nil
+}
+
 func (p *Rethink) Login(username string, password string) error {
 	sess, err := p.connect()
 	result, err := r.Table("users").Filter(r.Row.Field("username").Eq(username)).Run(sess)
@@ -172,6 +209,12 @@ func (p *Rethink) GetAllRooms() (rooms []string, err error) {
 	return
 }
 
+type ScoreEntry struct {
+	ID         string `gorethink:"id,omitempty"`
+	PlayerName string
+	Score      int
+}
+
 func (p *Rethink) SendPublicMessage(message string) error {
 	sess, err := p.connect()
 	if err != nil {
@@ -182,6 +225,9 @@ func (p *Rethink) SendPublicMessage(message string) error {
 	msg.Sender = auth.UserSess.GetUser()
 	msg.CreatedAt = time.Now().Unix()
 	_, err = r.Table(p.getPublicMsgTable()).Insert(msg).RunWrite(sess)
+	if err != nil {
+		panic(err)
+	}
 	return err
 }
 
@@ -217,13 +263,19 @@ func (p *Rethink) FeedsPublic() error {
 	if err != nil {
 		return err
 	}
-	cursor, err := r.Table(p.getPublicMsgTable()).Changes().Run(sess)
+	cursor, err := r.Table(p.getPublicMsgTable()).Changes().Field("new_val").Run(sess)
 	if err != nil {
 		return err
 	}
 	var msg PublicMessage
 	for cursor.Next(&msg) {
-		fmt.Println(msg)
+		record := ChatRecordPoll.Get().(*ChatRecord)
+		record.Channel = ChannelPublic
+		record.Content = msg.Content
+		record.CreatedAt = msg.CreatedAt
+		record.Id = msg.Id
+		record.Sender = msg.Sender
+		ChatRecordChan <- record
 	}
 	return nil
 }
@@ -233,13 +285,19 @@ func (p *Rethink) FeedsRoom(room string) error {
 	if err != nil {
 		return err
 	}
-	cursor, err := r.Table(room).Changes().Run(sess)
+	cursor, err := r.Table(room).Changes().Field("new_val").Run(sess)
 	if err != nil {
 		return err
 	}
 	var msg RoomMessage
 	for cursor.Next(&msg) {
-		fmt.Println(msg)
+		record := ChatRecordPoll.Get().(*ChatRecord)
+		record.Channel = ChannelRoom
+		record.Content = msg.Content
+		record.CreatedAt = msg.CreatedAt
+		record.Id = msg.Id
+		record.Sender = msg.Sender
+		ChatRecordChan <- record
 	}
 	return nil
 }
@@ -252,13 +310,20 @@ func (p *Rethink) FeedPrivate() error {
 	cursor, err := r.Table(p.getPrivateMsgTable()).
 		Filter(r.Row.Field("Receiver").Eq(auth.UserSess.GetUser())).
 		Changes().
+		Field("new_val").
 		Run(sess)
 	if err != nil {
 		return err
 	}
 	var msg PrivateMessage
 	for cursor.Next(&msg) {
-		fmt.Println(msg)
+		record := ChatRecordPoll.Get().(*ChatRecord)
+		record.Channel = ChannelPrivate
+		record.Content = msg.Content
+		record.CreatedAt = msg.CreatedAt
+		record.Id = msg.Id
+		record.Sender = msg.Sender
+		ChatRecordChan <- record
 	}
 	return nil
 }
