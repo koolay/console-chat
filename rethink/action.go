@@ -77,38 +77,26 @@ func (p *Rethink) connect() (sess *r.Session, err error) {
 
 // Test test
 func (p *Rethink) Test() error {
-	//sess, err := p.connect()
-	//go func() {
-	//for {
-	//m := PublicMessage{
-	//Sender:    "debug",
-	//Content:   "hello" + string(time.Now().Unix()),
-	//CreatedAt: time.Now().Unix(),
-	//}
-	//_, err = r.Table(p.getPublicMsgTable()).Insert(m).RunWrite(sess)
-	//time.Sleep(1 * time.Second)
-	//}
-	//}()
-	//user := auth.Users{
-	//Username: "ooo",
-	//Password: "123",
-	//}
-	//fmt.Println(result.Created)
-	go func() {
-		for {
-			p.SendPublicMessage("foo" + time.Now().Format("2006-01-02 15:04:05"))
-			time.Sleep(1 * time.Second)
 
-		}
-	}()
-	go func() {
-		p.FeedsPublic()
-	}()
-	for {
-		record := <-ChatRecordChan
-		fmt.Println("chan->", "id:", record.Id, ",", record.Content, ",", record.CreatedAt, ",", record.Sender)
+	sess, err := p.connect()
+	if err != nil {
+		return err
 	}
-	//return err
+	cursor, err := r.Table(p.getPublicMsgTable()).Changes().Field("new_val").Run(sess)
+	if err != nil {
+		return err
+	}
+
+	var msg PublicMessage
+	for cursor.Next(&msg) {
+		record := ChatRecordPoll.Get().(*ChatRecord)
+		record.Channel = ChannelPublic
+		record.Content = msg.Content
+		record.CreatedAt = msg.CreatedAt
+		record.Id = msg.Id
+		record.Sender = msg.Sender
+		fmt.Println(record)
+	}
 	return nil
 }
 
